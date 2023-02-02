@@ -1,70 +1,183 @@
-# Getting Started with Create React App
+# Notes
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+### Sending GET request using .then()
 
-## Available Scripts
+```
+function fetchMoviesHandler() {
+  fetch('https://swapi.dev/api/films/')
+    .then((response) => {
+      return response.json();
+    })
+    .then((data) => {
+      const transformedMovies = data.results.map((movieData) => {
+        return {
+          id: movieData.episode_id,
+          title: movieData.title,
+          openingText: movieData.opening_crawl,
+          releaseDate: movieData.release_date,
+        };
+      });
+      setMovies(transformedMovies);
+    });
+}
+```
 
-In the project directory, you can run:
+### Sending GET request using async-await
 
-### `npm start`
+```
+async function fetchMoviesHandler() {
+    const response = await fetch('https://swapi.dev/api/films/');
+    const data = await response.json();
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+    const transformedMovies = data.results.map((movieData) => {
+      return {
+        id: movieData.episode_id,
+        title: movieData.title,
+        openingText: movieData.opening_crawl,
+        releaseDate: movieData.release_date,
+      };
+    });
+    setMovies(transformedMovies);
+  }
+```
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+### Handling loading -
 
-### `npm test`
+1. create loading state - `const [isLoading, setIsLoading] = useState(false);`
+2. start loading before fetching data - `setIsLoading(true);`
+3. end loading after data has been fetch - `setIsLoading(false);`
+4. Conditionally load loading message -
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+```
+<section>
+  {!isLoading && movies.length > 0 && <MoviesList movies={movies} />}
+  {!isLoading && movies.length === 0 && <p>Found no movies.</p>}
+  {isLoading && <p>Loading...</p>}
+</section>
+```
 
-### `npm run build`
+full code -
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+```
+function App() {
+  const [movies, setMovies] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+  async function fetchMoviesHandler() {
+    setIsLoading(true); // start loading
+    const response = await fetch('https://swapi.dev/api/films/');
+    const data = await response.json();
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+    const transformedMovies = data.results.map((movieData) => {
+      return {
+        id: movieData.episode_id,
+        title: movieData.title,
+        openingText: movieData.opening_crawl,
+        releaseDate: movieData.release_date,
+      };
+    });
+    setMovies(transformedMovies);
+    setIsLoading(false); // end loading
+  }
 
-### `npm run eject`
+  return (
+    <React.Fragment>
+      <section>
+        <button onClick={fetchMoviesHandler}>Fetch Movies</button>
+      </section>
+      <section>
+        {!isLoading && movies.length > 0 && <MoviesList movies={movies} />}
+        {!isLoading && movies.length === 0 && <p>Found no movies.</p>}
+        {isLoading && <p>Loading...</p>}
+      </section>
+    </React.Fragment>
+  );
+}
+```
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+### Handling HTTP Errors
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+1. create error state - `const [error, setError] = useState(null);`
+2. clear any previous error - `setError(null);`
+3. create try()...catch()
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+   Remember! - fetch does not raise error even when status code in not 200. but axios raise error when status code is not 200
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+### Use Effect for requesting
 
-## Learn More
+```
+function App() {
+  const [movies, setMovies] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+  const fetchMoviesHandler = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const response = await fetch('https://swapi.dev/api/films/');
+      if (!response.ok) {
+        throw new Error('Something went wrong!');
+      }
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+      const data = await response.json();
 
-### Code Splitting
+      const transformedMovies = data.results.map((movieData) => {
+        return {
+          id: movieData.episode_id,
+          title: movieData.title,
+          openingText: movieData.opening_crawl,
+          releaseDate: movieData.release_date,
+        };
+      });
+      setMovies(transformedMovies);
+    } catch (error) {
+      setError(error.message);
+    }
+    setIsLoading(false);
+  }, []);
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+  useEffect(() => {
+    fetchMoviesHandler();
+  }, [fetchMoviesHandler]);
 
-### Analyzing the Bundle Size
+  let content = <p>Found no movies.</p>;
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
+  if (movies.length > 0) {
+    content = <MoviesList movies={movies} />;
+  }
 
-### Making a Progressive Web App
+  if (error) {
+    content = <p>{error}</p>;
+  }
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
+  if (isLoading) {
+    content = <p>Loading...</p>;
+  }
 
-### Advanced Configuration
+  return (
+    <React.Fragment>
+      <section>
+        <button onClick={fetchMoviesHandler}>Fetch Movies</button>
+      </section>
+      <section>{content}</section>
+    </React.Fragment>
+  );
+}
+```
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
+### sending post request
 
-### Deployment
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
-
-### `npm run build` fails to minify
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+```
+async function addMovieHandler(movie) {
+  const response = await fetch('https://react-http-6b4a6.firebaseio.com/movies.json', {
+    method: 'POST',
+    body: JSON.stringify(movie),
+    headers: {
+      'Content-Type': 'application/json'
+    }
+  });
+  const data = await response.json();
+  console.log(data);
+}
+```
